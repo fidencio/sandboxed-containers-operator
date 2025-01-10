@@ -9,8 +9,10 @@ SKIP_NFD="${SKIP_NFD:-false}"
 TRUSTEE_URL="${TRUSTEE_URL:-"http://kbs-service.trustee-operator-system:8080"}"
 CMD_TIMEOUT="${CMD_TIMEOUT:-900}"
 CLUSTER_HTTPS_PROXY="$(oc get proxy/cluster -o json | jq .spec.httpsProxy)"
+CLUSTER_NO_PROXY="$(oc get proxy/cluster -o json | jq .spec.noProxy)"
 
 [ "$CLUSTER_HTTPS_PROXY" = "null" ] && CLUSTER_HTTPS_PROXY=""
+[ "$CLUSTER_NO_PROXY" = "null" ] && CLUSTER_NO_PROXY=""
 
 export PCCS_API_KEY="${PCCS_API_KEY:-}"
 export PCCS_DB_NAME="${PCCS_DB_NAME:-database}"
@@ -371,6 +373,11 @@ function set_aa_kbc_params_for_kata_agent() {
     # Input kernel_params="agent.aa_kbc_params=cc_kbc::$trustee_url"
     kata_override="[hypervisor.qemu]
 kernel_params= \"agent.aa_kbc_params=cc_kbc::$trustee_url\""
+
+    if [ -n "$CLUSTER_HTTPS_PROXY" ]; then
+        kata_override="[hypervisor.qemu]
+kernel_params=\"agent.aa_kbc_params=cc_kbc::$trustee_url agent.https_proxy=$CLUSTER_HTTPS_PROXY agent.no_proxy=$CLUSTER_NO_PROXY\""
+    fi
 
     # Create base64 encoding of the drop-in to be used as source
     source=$(echo "$kata_override" | base64 -w0) || return 1
